@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>صفحة اختبار Kasrah Games SDK</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; padding: 20px; text-align: center; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; margin-bottom: 20px; }
+        .btn { display: inline-block; padding: 12px 25px; margin: 10px; font-size: 16px; cursor: pointer; border: none; border-radius: 8px; transition: 0.3s; color: white; font-weight: bold; }
+        .btn-ad { background-color: #e67e22; }
+        .btn-save { background-color: #27ae60; }
+        .btn-load { background-color: #2980b9; }
+        .btn:hover { opacity: 0.8; transform: translateY(-2px); }
+        .status { margin-top: 20px; padding: 15px; border-radius: 8px; background: #eee; font-size: 14px; min-height: 50px; white-space: pre-wrap; text-align: left; direction: ltr; }
+        input { padding: 10px; width: 80%; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>اختبار Kasrah Games SDK</h1>
+    <p>استخدم الأزرار أدناه لتجربة ميزات الـ SDK الخارجي.</p>
+
+    <hr>
+
+    <h3>1. نظام الإعلانات</h3>
+    <button class="btn btn-ad" onclick="showAd()">عرض إعلان (Ad)</button>
+
+    <hr>
+
+    <h3>2. الحفظ السحابي (Cloud Save)</h3>
+    <input type="text" id="saveData" placeholder='مثال: {"score": 500, "level": 3}'>
+    <br>
+    <button class="btn btn-save" onclick="saveToCloud()">حفظ البيانات سحابياً</button>
+    <button class="btn btn-load" onclick="loadFromCloud()">تحميل البيانات</button>
+
+    <div class="status" id="statusLog">بانتظار تحميل الـ SDK...</div>
+</div>
+
+<!-- تحميل الـ SDK من الـ CDN الخاص بك -->
+<script src="./kasrah-sdk.js"></script>
+
+<script>
+    const log = (msg) => {
+        const statusLog = document.getElementById('statusLog');
+        statusLog.innerText = `[${new Date().toLocaleTimeString()}] ${msg}\n` + statusLog.innerText;
+    };
+
+    // التأكد من تحميل الـ SDK
+    window.onload = () => {
+        if (window.KasrahSDK) {
+            log("تم تحميل Kasrah SDK بنجاح!");
+            log(`رابط الـ API المكتشف: ${KasrahSDK.apiUrl}`);
+        } else {
+            log("خطأ: لم يتم العثور على Kasrah SDK!");
+        }
+    };
+
+    function showAd() {
+        log("طلب عرض إعلان...");
+        KasrahSDK.showAd({
+            onComplete: () => log("اكتمل عرض الإعلان بنجاح!"),
+            onClose: () => log("تم إغلاق الإعلان من قبل المستخدم.")
+        });
+    }
+
+    async function saveToCloud() {
+        const dataInput = document.getElementById('saveData').value;
+        let data;
+        try {
+            data = JSON.parse(dataInput || '{"score": 0}');
+        } catch(e) {
+            log("خطأ: يرجى إدخال بيانات بصيغة JSON صحيحة.");
+            return;
+        }
+
+        log("جاري حفظ البيانات في السحاب...");
+        const result = await KasrahSDK.saveData(data);
+        if (result.success) {
+            log("تم الحفظ بنجاح في قاعدة بيانات Prisma!");
+        } else {
+            log(`فشل الحفظ: ${result.error}`);
+        }
+    }
+
+    async function loadFromCloud() {
+        log("جاري تحميل البيانات من السحاب...");
+        const result = await KasrahSDK.loadData();
+        if (result.success) {
+            log(`تم التحميل: ${JSON.stringify(result.data)}`);
+            document.getElementById('saveData').value = JSON.stringify(result.data);
+        } else {
+            log(`فشل التحميل: ${result.error}`);
+        }
+    }
+</script>
+
+</body>
+</html>
