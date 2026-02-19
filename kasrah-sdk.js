@@ -1,16 +1,16 @@
 /**
- * Kasrah Games SDK v3.1.0 (CDN Version)
+ * Kasrah Games SDK v3.2.0 (CDN Version)
  * Official SDK for Kasrah Games Platform
  * 
  * Features:
  * - Auto-detection of API URL and Game ID
- * - Real Ad Rendering System (UI/UX)
- * - Cloud Save & Data Sync with Main Site
+ * - Independent Ad Rendering System (UI/UX)
+ * - Cloud Save & Data Sync with Main Site (Prisma)
  * - Zero dependency, lightweight, and secure
  */
 
 (function() {
-    const SDK_VERSION = "3.1.0";
+    const SDK_VERSION = "3.2.0";
     const DEFAULT_API_URL = "https://kasrah-games.onrender.com";
     
     class KasrahSDK {
@@ -19,60 +19,43 @@
             this.gameId = null;
             this.isInitialized = false;
             this.adContainer = null;
-            this.playerData = {};
             
             console.log(`%c Kasrah SDK v${SDK_VERSION} Loaded `, 'background: #222; color: #bada55; font-weight: bold;');
         }
 
         /**
          * Initialize the SDK
-         * @param {Object} config - Optional configuration
          */
         async init(config = {}) {
             this.gameId = config.gameId || this._detectGameId();
             this.apiUrl = config.apiUrl || DEFAULT_API_URL;
             this.isInitialized = true;
-            console.log(`Kasrah SDK Initialized for Game: ${this.gameId || 'Unknown'}`);
+            console.log(`Kasrah SDK Initialized for Game: ${this.gameId}`);
             return true;
         }
 
         /**
-         * Show a real advertisement
-         * @param {Object} options - Ad options
+         * Show an Interstitial Ad
+         * Note: This is currently a standalone UI for the SDK to avoid interference with site ads.
          */
         async showAd(options = {}) {
             if (!this.isInitialized) await this.init();
 
-            console.log("Kasrah SDK: Fetching ad...");
+            console.log("Kasrah SDK: Displaying ad...");
             
-            try {
-                // Using the correct API route found in the project
-                const response = await fetch(`${this.apiUrl}/api/ads?position=interstitial`);
-                const data = await response.json();
-
-                if (data && data.ads && data.ads.length > 0) {
-                    // Pick a random ad from the list
-                    const randomAd = data.ads[Math.floor(Math.random() * data.ads.length)];
-                    this._renderAdUI(randomAd, options);
-                } else {
-                    console.log("Kasrah SDK: No ads available, showing fallback.");
-                    // Fallback ad if no ads are in DB
-                    this._renderAdUI({
-                        title: "Kasrah Games",
-                        description: "استمتع بأفضل الألعاب المجانية على منصة كسرة!",
-                        imageUrl: "https://kasrah-games.onrender.com/images/logo.png",
-                        targetUrl: "https://kasrah-games.onrender.com",
-                        buttonText: "العب الآن"
-                    }, options);
-                }
-            } catch (error) {
-                console.error("Kasrah SDK: Failed to load ad", error);
-                if (options.onClose) options.onClose();
-            }
+            // For now, we use a high-quality fallback/default ad for the SDK 
+            // to ensure it works independently of the site's internal ad system.
+            this._renderAdUI({
+                title: "Kasrah Games",
+                description: "استمتع بأفضل الألعاب المجانية على منصة كسرة!",
+                imageUrl: "https://kasrah-games.onrender.com/images/logo.png",
+                targetUrl: "https://kasrah-games.onrender.com",
+                buttonText: "العب الآن"
+            }, options);
         }
 
         /**
-         * Save player data to the cloud
+         * Save player data to the cloud (Uses Prisma on Render)
          */
         async saveData(data) {
             if (!this.isInitialized) await this.init();
@@ -88,12 +71,13 @@
                 });
                 return await response.json();
             } catch (error) {
+                console.error("Kasrah SDK: Save failed", error);
                 return { success: false, error: error.message };
             }
         }
 
         /**
-         * Load player data from the cloud
+         * Load player data from the cloud (Uses Prisma on Render)
          */
         async loadData() {
             if (!this.isInitialized) await this.init();
@@ -103,6 +87,7 @@
                 const result = await response.json();
                 return result;
             } catch (error) {
+                console.error("Kasrah SDK: Load failed", error);
                 return { success: false, error: error.message };
             }
         }
@@ -115,56 +100,50 @@
         }
 
         _renderAdUI(ad, options = {}) {
-            // Remove existing if any
-            if (this.adContainer) {
-                document.body.removeChild(this.adContainer);
-            }
+            if (this.adContainer) document.body.removeChild(this.adContainer);
 
-            // Create Overlay
             this.adContainer = document.createElement('div');
             this.adContainer.id = 'kasrah-ad-overlay';
             Object.assign(this.adContainer.style, {
                 position: 'fixed',
                 top: '0', left: '0', width: '100%', height: '100%',
-                backgroundColor: 'rgba(0,0,0,0.85)',
-                zIndex: '2147483647', // Maximum possible z-index
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center',
+                backgroundColor: 'rgba(0,0,0,0.9)',
+                zIndex: '2147483647',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontFamily: 'sans-serif', color: 'white',
-                backdropFilter: 'blur(5px)'
+                backdropFilter: 'blur(8px)'
             });
 
-            // Ad Content
             this.adContainer.innerHTML = `
-                <div style="position: relative; width: 90%; max-width: 400px; background: #fff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.5); color: #333; text-align: center; animation: kasrahFadeIn 0.3s ease-out;">
-                    <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 4px; font-size: 10px; color: #666;">إعلان</div>
-                    <img src="${ad.imageUrl || ad.image || 'https://via.placeholder.com/400x200?text=Kasrah+Games'}" style="width: 100%; height: 200px; object-fit: cover; display: block;">
-                    <div style="padding: 25px;">
-                        <h3 style="margin: 0 0 10px 0; font-size: 20px; color: #2c3e50;">${ad.title || 'Kasrah Games'}</h3>
-                        <p style="margin: 0 0 20px 0; color: #7f8c8d; font-size: 14px; line-height: 1.5;">${ad.description || 'أفضل منصة للألعاب العربية'}</p>
-                        <a href="${ad.targetUrl || ad.url || '#'}" target="_blank" style="display: block; background: #e67e22; color: white; padding: 12px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 16px; transition: 0.2s;">
-                            ${ad.buttonText || 'اكتشف المزيد'}
+                <div style="position: relative; width: 90%; max-width: 400px; background: #fff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.6); color: #333; text-align: center; animation: kasrahPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+                    <div style="position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.05); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: #888; font-weight: bold;">AD</div>
+                    <div style="height: 220px; background: #f8f9fa; display: flex; align-items: center; justify-content: center;">
+                        <img src="${ad.imageUrl}" style="max-width: 180px; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.1));">
+                    </div>
+                    <div style="padding: 30px;">
+                        <h3 style="margin: 0 0 12px 0; font-size: 22px; color: #1a1a1a;">${ad.title}</h3>
+                        <p style="margin: 0 0 25px 0; color: #666; font-size: 15px; line-height: 1.6;">${ad.description}</p>
+                        <a href="${ad.targetUrl}" target="_blank" style="display: block; background: linear-gradient(135deg, #e67e22, #d35400); color: white; padding: 14px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 17px; box-shadow: 0 4px 15px rgba(230, 126, 34, 0.3);">
+                            ${ad.buttonText}
                         </a>
                     </div>
-                    <button id="kasrah-close-ad" style="position: absolute; top: 10px; left: 10px; background: #eee; border: none; color: #333; width: 30px; height: 30px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;">&times;</button>
+                    <button id="kasrah-close-ad" style="position: absolute; top: 15px; left: 15px; background: #f1f2f6; border: none; color: #2f3542; width: 32px; height: 32px; border-radius: 50%; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s;">&times;</button>
                 </div>
                 <style>
-                    @keyframes kasrahFadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+                    @keyframes kasrahPop { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+                    #kasrah-close-ad:hover { background: #dfe4ea; transform: rotate(90deg); }
                 </style>
             `;
 
             document.body.appendChild(this.adContainer);
 
-            // Close Logic
             document.getElementById('kasrah-close-ad').onclick = () => {
                 document.body.removeChild(this.adContainer);
                 this.adContainer = null;
                 if (options.onClose) options.onClose();
-                if (options.onComplete) options.onComplete();
             };
         }
     }
 
-    // Export to global scope
     window.KasrahSDK = new KasrahSDK();
 })();
